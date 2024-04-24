@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/lucasschmidt015/TwitterBackend#readme",
   "dependencies": {
+    "@prisma/client": "^5.13.0",
     "express": "^4.19.2"
   },
   "devDependencies": {
