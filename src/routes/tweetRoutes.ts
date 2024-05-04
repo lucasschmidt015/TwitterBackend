@@ -1,19 +1,28 @@
-import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router, Request, Response } from 'express';
+import { PrismaClient, User } from '@prisma/client';
 
 const router = Router();
 const prisma = new PrismaClient();
 
+type AuthRequest = Request & { user?: User }
+
 // Create tweet
-router.post('/', async (req, res) => {
-    const { content, image, userId  } = req.body
+router.post('/', async (req: AuthRequest, res: Response) => {
+    const { content, image } = req.body;
+
+    const user = req.user;
 
     try {
+
+        if (!user) {
+            return res.sendStatus(401);
+        }
+
         const result = await prisma.tweet.create({
             data: {
                 content,
                 image,
-                userId,
+                userId: user.id,
             }
         });
 
