@@ -3,9 +3,11 @@ import userRoutes from './routes/userRoutes';
 import tweetRoutes from './routes/tweetRoutes';
 import authRoutes from './routes/authRoutes';
 import { authenticateToken } from './middlewares/authMiddleware';
+const cors = require('cors')
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/user', authenticateToken, userRoutes);
@@ -20,4 +22,4 @@ app.listen(3000, () => {
     console.log("Server ready at localhost:3000");
 });
 
-// I've stoped at 3:33:00 <------------
+// I've stoped at 00:19:36 <------------
