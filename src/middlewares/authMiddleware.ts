@@ -4,8 +4,6 @@ import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 
-console.log(JWT_SECRET);
-
 const prisma = new PrismaClient();
 
 type AuthRequest = Request & { user?: User }

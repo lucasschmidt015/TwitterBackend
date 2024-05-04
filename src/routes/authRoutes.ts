@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken'
+import { sendEmailToken } from "../services/emailService";
 
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_HOURS = 12;
@@ -56,6 +57,8 @@ router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Respons
                 }
             }
         });
+
+        await sendEmailToken(email, emailToken);
     } catch (err) {
         console.log('err <---- ', err);
         return res.status(500).json({ error: 'something bad happened' });
