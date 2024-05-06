@@ -23,6 +23,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
                 content,
                 image,
                 userId: user.id,
+            },
+            include: {
+                user: true,
             }
         });
 
