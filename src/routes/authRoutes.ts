@@ -5,6 +5,7 @@ import { sendEmailToken } from "../services/emailService";
 
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_HOURS = 12;
+const AUTHENTICATION_EXPIRATION_MONTHS = 3;
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 
 const router = Router();
@@ -13,6 +14,11 @@ const prisma = new PrismaClient();
 interface TokenRequest {
     email: string;
     emailToken: string;
+}
+
+interface checkToken {
+    accessToken: string;
+    refreshToken: string;
 }
 
 //Generate a random 8 digit number as the email token
@@ -27,6 +33,34 @@ function generateAuthToken(tokenId: number): string {
         algorithm: "HS256",
         noTimestamp: true,
     });
+}
+
+async function generateDBTokens(email: string){
+    const dbAccessToken = await prisma.token.create({
+        data: {
+            type: "API",
+            expiration: new Date(Date.now() + AUTHENTICATION_EXPIRATION_HOURS * 60 * 60 * 1000),
+            user: {
+                connect: {
+                    email,
+                }
+            }
+        }
+    });
+
+    const dbRefreshToken = await prisma.token.create({
+        data: {
+            type: "REFRESH",
+            expiration: new Date(Date.now() + AUTHENTICATION_EXPIRATION_MONTHS * 30 * 24 * 60 * 60 * 1000),
+            user: {
+                connect: {
+                    email,
+                }
+            }
+        }
+    });
+
+    return { dbAccessToken, dbRefreshToken };
 }
 
 // Create a user, if it doesn't exist,
@@ -67,8 +101,7 @@ router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Respons
     res.sendStatus(200);
 });
 
-//Validate the emailToken
-//Generate a long-lived JWT token
+// Here we should improve the error validarion <----------
 router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Response) => {
     const { email, emailToken } = req.body;
 
@@ -104,21 +137,8 @@ router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Res
         return res.sendStatus(401);
     }
     
-    // Generate an API token
-    const expiration = new Date(Date.now() + AUTHENTICATION_EXPIRATION_HOURS * 60 * 60 * 1000);
-
     //Create the token on the database
-    const apiToken = await prisma.token.create({
-        data: {
-            type: "API",
-            expiration,
-            user: {
-                connect: {
-                    email,
-                }
-            }
-        }
-    });
+    const { dbAccessToken, dbRefreshToken } = await generateDBTokens(email);
 
     //Set the emailToken as invalid
     await prisma.token.update({
@@ -131,9 +151,74 @@ router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Res
     })
 
     //Generate the JWT token
-    const authToken = generateAuthToken(apiToken.id);
+    const accessToken = generateAuthToken(dbAccessToken.id);
+    const refreshToken = generateAuthToken(dbRefreshToken.id);
     
-    return res.status(200).json({ authToken });
+    return res.status(200).json({ accessToken, refreshToken });
 })
+
+router.post('/checkAccessToken', async (req: Request<{}, {}, checkToken>, res: Response) => {
+    const { accessToken, refreshToken } = req.body;
+
+    if (!accessToken || !refreshToken) {
+        return res.status(400).json({stillValid: false});
+    }
+
+    try {
+        const payloadAccess = await jwt.verify(accessToken, JWT_SECRET) as { tokenId: number };
+
+        if (!payloadAccess?.tokenId) {
+            return res.status(401).json({stillValid: false});
+        }
+
+        const oldDBAcessToken = await prisma.token.findUnique({
+            where: { id: payloadAccess.tokenId },
+            include: {
+                user: true,
+            }
+        })
+
+        if (!oldDBAcessToken?.valid || oldDBAcessToken.expiration < new Date()) {
+            
+            const payloadRefresh = await jwt.verify(refreshToken, JWT_SECRET) as { tokenId: number };
+         
+            if (!payloadRefresh?.tokenId) {
+                return res.status(401).json({stillValid: false});
+            }
+
+            const oldDBRefreshToken = await prisma.token.findUnique({
+                where: {
+                    id: payloadRefresh.tokenId,
+                },
+                include: {
+                    user: true,
+                }
+            })
+
+            if (!oldDBRefreshToken?.valid || oldDBRefreshToken.expiration < new Date()) {
+                return res.status(200).json({ stillValid: false })
+            }
+
+            const { dbAccessToken, dbRefreshToken } = await generateDBTokens(oldDBRefreshToken.user.email);
+
+            const newAccessToken = generateAuthToken(dbAccessToken.id);
+            const newRefreshToken = generateAuthToken(dbRefreshToken.id);
+
+            return res.status(200).json({ stillValid: false, UpdatedTokens: {
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+            } })
+        }
+
+        return res
+                .status(200)
+                .json({ stillValid: true });
+                
+    } catch (err) {
+        res.sendStatus(401);
+    }
+});
+
+
 
 export default router;
