@@ -70,13 +70,17 @@ router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Respons
 
 
     if (!email) {
-        return res.status(400).json({ error: 'Field E-mail is missing' });
+        return res.status(400).json({ error: 'You should provide the E-mail' });
     }
 
     //Generate a token
     const emailToken = generateEmailToken();
     const expiration = new Date(Date.now() + EMAIL_TOKEN_EXPIRATION_MINUTES * 60 * 1000);
 
+    /// <------- 
+    /// We need to create a validation to don't allow inputs that are not emails;
+    /// We need to take of the error message after some seconds;
+    /// <-------
     try {
         const createdToken = await prisma.token.create({
             data: {
@@ -94,8 +98,7 @@ router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Respons
 
         await sendEmailToken(email, emailToken);
     } catch (err) {
-        console.log('err <---- ', err);
-        return res.status(500).json({ error: 'something bad happened' });
+        return res.status(500).json({ error: 'Internal server error, please try again later.' });
     }
 
     res.sendStatus(200);
