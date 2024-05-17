@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken'
 import { sendEmailToken } from "../services/emailService";
+import { authValidation } from "./validations/authValidation";
 
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_HOURS = 12;
@@ -68,19 +69,15 @@ async function generateDBTokens(email: string){
 router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Response) => {
     const { email } = req.body;
 
+    const errors = authValidation(req.body);
 
-    if (!email) {
-        return res.status(400).json({ error: 'You should provide the E-mail' });
+    if (errors) {
+        return res.status(errors.statusCode).json({ error: errors.error})
     }
-
     //Generate a token
     const emailToken = generateEmailToken();
     const expiration = new Date(Date.now() + EMAIL_TOKEN_EXPIRATION_MINUTES * 60 * 1000);
 
-    /// <------- 
-    /// We need to create a validation to don't allow inputs that are not emails;
-    /// We need to take of the error message after some seconds;
-    /// <-------
     try {
         const createdToken = await prisma.token.create({
             data: {
