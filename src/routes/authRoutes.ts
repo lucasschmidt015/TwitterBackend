@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken'
 import { sendEmailToken } from "../services/emailService";
-import { authValidation } from "./validations/authValidation";
+import { loginValidation } from "./validations/authValidation";
 
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_HOURS = 12;
@@ -69,7 +69,7 @@ async function generateDBTokens(email: string){
 router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Response) => {
     const { email } = req.body;
 
-    const errors = authValidation(req.body);
+    const errors = loginValidation(req.body);
 
     if (errors) {
         return res.status(errors.statusCode).json({ error: errors.error})
@@ -218,6 +218,56 @@ router.post('/checkAccessToken', async (req: Request<{}, {}, checkToken>, res: R
         res.sendStatus(401);
     }
 });
+
+//This route will invalidate the access token and the refresh token when the user logout
+router.post('/logout', async (req, res) => {
+    const { accessToken, refreshToken } = req.body;
+
+    if (!accessToken && !refreshToken) {
+        return res.sendStatus(200);
+    }
+
+    if (accessToken) {
+        const payloadAccess = await jwt.verify(accessToken, JWT_SECRET) as { tokenId: number };
+        const accessId = payloadAccess.tokenId;
+        if (accessId) {
+            try {
+                await prisma.token.update({
+                    where: {
+                        id: accessId,
+                    },
+                    data: {
+                        valid: false
+                    }
+                });
+            } catch (err) {
+                console.log(err);
+            }
+        }
+    }
+
+    if (refreshToken) {
+        const payloadRefresh = await jwt.verify(refreshToken, JWT_SECRET) as { tokenId: number };
+        const refreshId = payloadRefresh.tokenId;
+        if (refreshId) {
+            try {
+                await prisma.token.update({
+                    where: {
+                        id: refreshId,
+                    },
+                    data: {
+                        valid: false,
+                    }
+                });
+            } catch (err) {
+                console.log(err);
+            }
+        }
+    }
+
+
+    res.sendStatus(200);
+})
 
 
 

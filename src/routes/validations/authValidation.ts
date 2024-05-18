@@ -4,7 +4,7 @@ type authValidationReturn = {
 };
 
 
-export const authValidation = (body: { email: string }): authValidationReturn | undefined => {
+export const loginValidation = (body: { email: string }): authValidationReturn | undefined => {
 
     const { email } = body;
 
