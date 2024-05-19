@@ -1,11 +1,17 @@
-import { Router } from 'express';
+import { Router, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
 
 const router = Router();
 const prisma = new PrismaClient();
 
+interface CreateBody {
+    email: string,
+    name: string,
+    username: string
+}
+
 // Create User
-router.post('/', async (req, res) => {
+router.post('/', async (req: Request<{}, {}, CreateBody>, res: Response) => {
     const { email, name, username } = req.body
 
     try {
@@ -26,14 +32,29 @@ router.post('/', async (req, res) => {
     
 });
 
+interface AuthenticatedRequest extends Request {
+    user?: any;
+}
+
+router.get('/loggedUser', (req: AuthenticatedRequest, res: Response) => {
+    
+    if(!req.user) {
+        return res.status(401).json({
+            error: 'Unauthorized',
+        });
+    }
+
+    res.status(200).json(req.user);
+});
+
 // List user
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response) => {
     const allUser = await prisma.user.findMany();
     res.json(allUser);
 });
 
 // Get one user
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: Request<{ id: string }, {}, {}>, res: Response) => {
     const { id } = req.params;
 
     const user = await prisma.user.findUnique({ where: { id: Number(id) }, include: { tweets: true } });
@@ -41,8 +62,19 @@ router.get('/:id', async (req, res) => {
     res.json(user)
 });
 
+
+interface updateParams {
+    id: string;
+}
+
+interface updateBody {
+    bio: string;
+    name: string;
+    image: string;
+}
+
 //Update User
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request<updateParams, {}, updateBody>, res: Response) => {
     const { id } = req.params;
     const { bio, name, image } = req.body;
 
@@ -66,7 +98,7 @@ router.put('/:id', async (req, res) => {
 });
 
 //Delete User
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     await prisma.user.delete({
@@ -75,5 +107,6 @@ router.delete('/:id', async (req, res) => {
 
     res.sendStatus(200);
 });
+
 
 export default router;
