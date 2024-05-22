@@ -1,18 +1,22 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
+import { User } from "../../types";
+import { authenticateToken } from '../middlewares/authMiddleware';
+import { validadeNewUser } from "./validations/userValidation";
+import { saveEmailToken } from "../utils";
 
 const router = Router();
 const prisma = new PrismaClient();
 
-interface CreateBody {
-    email: string,
-    name: string,
-    username: string
-}
-
 // Create User
-router.post('/', async (req: Request<{}, {}, CreateBody>, res: Response) => {
+router.post('/', async (req: Request<{}, {}, User>, res: Response) => {
     const { email, name, username } = req.body
+
+    const error = await validadeNewUser({email, username: username as string, name: name as string});
+
+    if (error) {
+        return res.status(error.statusCode).json({ error: error.error});
+    }
 
     try {
         const result = await prisma.user.create({
@@ -23,6 +27,8 @@ router.post('/', async (req: Request<{}, {}, CreateBody>, res: Response) => {
                 bio: "Hello, I'm new on Twitter",
             }
         });
+
+        await saveEmailToken(result.email);
 
         res.status(201).json(result);
 
@@ -36,7 +42,7 @@ interface AuthenticatedRequest extends Request {
     user?: any;
 }
 
-router.get('/loggedUser', (req: AuthenticatedRequest, res: Response) => {
+router.get('/loggedUser', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
     
     if(!req.user) {
         return res.status(401).json({
@@ -48,7 +54,7 @@ router.get('/loggedUser', (req: AuthenticatedRequest, res: Response) => {
 });
 
 // List user
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
     const allUser = await prisma.user.findMany();
     res.json(allUser);
 });
@@ -63,18 +69,8 @@ router.get('/:id', async (req: Request<{ id: string }, {}, {}>, res: Response) =
 });
 
 
-interface updateParams {
-    id: string;
-}
-
-interface updateBody {
-    bio: string;
-    name: string;
-    image: string;
-}
-
 //Update User
-router.put('/:id', async (req: Request<updateParams, {}, updateBody>, res: Response) => {
+router.put('/:id', authenticateToken, async (req: Request<{ id: string }, {}, User>, res: Response) => {
     const { id } = req.params;
     const { bio, name, image } = req.body;
 
@@ -98,7 +94,7 @@ router.put('/:id', async (req: Request<updateParams, {}, updateBody>, res: Respo
 });
 
 //Delete User
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
     const { id } = req.params;
 
     await prisma.user.delete({

@@ -3,10 +3,8 @@ import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken'
 import { sendEmailToken } from "../services/emailService";
 import { loginValidation } from "./validations/authValidation";
+import { generateAuthToken, saveDBTokens, saveEmailToken } from "../utils";
 
-const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
-const AUTHENTICATION_EXPIRATION_HOURS = 12;
-const AUTHENTICATION_EXPIRATION_MONTHS = 3;
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 
 const router = Router();
@@ -22,78 +20,18 @@ interface checkToken {
     refreshToken: string;
 }
 
-//Generate a random 8 digit number as the email token
-function generateEmailToken(): string {
-    return Math.floor(10000000 + (Math.random() * 90000000)).toString();
-}
-
-function generateAuthToken(tokenId: number): string {
-    const jwtPayload = { tokenId };
-
-    return jwt.sign(jwtPayload, JWT_SECRET, {
-        algorithm: "HS256",
-        noTimestamp: true,
-    });
-}
-
-async function generateDBTokens(email: string){
-    const dbAccessToken = await prisma.token.create({
-        data: {
-            type: "API",
-            expiration: new Date(Date.now() + AUTHENTICATION_EXPIRATION_HOURS * 60 * 60 * 1000),
-            user: {
-                connect: {
-                    email,
-                }
-            }
-        }
-    });
-
-    const dbRefreshToken = await prisma.token.create({
-        data: {
-            type: "REFRESH",
-            expiration: new Date(Date.now() + AUTHENTICATION_EXPIRATION_MONTHS * 30 * 24 * 60 * 60 * 1000),
-            user: {
-                connect: {
-                    email,
-                }
-            }
-        }
-    });
-
-    return { dbAccessToken, dbRefreshToken };
-}
-
-// Create a user, if it doesn't exist,
 // Generate the emailToken and send it to their email
 router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Response) => {
     const { email } = req.body;
 
-    const errors = loginValidation(req.body);
+    const errors = await loginValidation(req.body);
 
     if (errors) {
         return res.status(errors.statusCode).json({ error: errors.error})
     }
-    //Generate a token
-    const emailToken = generateEmailToken();
-    const expiration = new Date(Date.now() + EMAIL_TOKEN_EXPIRATION_MINUTES * 60 * 1000);
 
     try {
-        const createdToken = await prisma.token.create({
-            data: {
-                type: 'EMAIL',
-                emailToken,
-                expiration,
-                user: {
-                    connectOrCreate: {
-                        where: { email },
-                        create: { email }
-                    }
-                }
-            }
-        });
-
-        await sendEmailToken(email, emailToken);
+        saveEmailToken(email);
     } catch (err) {
         return res.status(500).json({ error: 'Internal server error, please try again later.' });
     }
@@ -101,7 +39,7 @@ router.post('/login', async (req: Request<{}, {}, {email: string}>, res: Respons
     res.sendStatus(200);
 });
 
-// Here we should improve the error validarion <----------
+// Here we should improve the error validarion, and the whole code <----------
 router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Response) => {
     const { email, emailToken } = req.body;
 
@@ -138,7 +76,7 @@ router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Res
     }
     
     //Create the token on the database
-    const { dbAccessToken, dbRefreshToken } = await generateDBTokens(email);
+    const { dbAccessToken, dbRefreshToken } = await saveDBTokens(email);
 
     //Set the emailToken as invalid
     await prisma.token.update({
@@ -199,7 +137,7 @@ router.post('/checkAccessToken', async (req: Request<{}, {}, checkToken>, res: R
                 return res.status(200).json({ stillValid: false })
             }
 
-            const { dbAccessToken, dbRefreshToken } = await generateDBTokens(oldDBRefreshToken.user.email);
+            const { dbAccessToken, dbRefreshToken } = await saveDBTokens(oldDBRefreshToken.user.email);
 
             const newAccessToken = generateAuthToken(dbAccessToken.id);
             const newRefreshToken = generateAuthToken(dbRefreshToken.id);
