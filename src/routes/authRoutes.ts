@@ -62,17 +62,17 @@ router.post('/authenticate', async (req: Request<{}, {}, TokenRequest>, res: Res
 
     // Validade if the token exists on the database and if it's valid
     if (!dbEmailToken || !dbEmailToken.valid) {
-        return res.sendStatus(401);
+        return res.status(401).json({ error: 'The password is invalid' });
     }
 
     // Here we validate that the token is not expired yet
     if (dbEmailToken.expiration < new Date()) {
-        return res.status(401).json({ error: 'The token has expired' });
+        return res.status(401).json({ error: 'The password has expired' });
     }
 
     // Here we validade that the user is the owner of the email
     if (dbEmailToken?.user?.email !== email) {
-        return res.sendStatus(401);
+        return res.status(401).json({ error: 'unauthorized' });
     }
     
     //Create the token on the database
