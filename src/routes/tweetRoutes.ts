@@ -48,7 +48,10 @@ router.get('/', async (req, res) => {
                     image: true,
                 } 
              }
-        }
+        },
+        orderBy: [
+            { createdAt: 'desc' }
+        ]
     });
     res.json(allTweets);
 });
