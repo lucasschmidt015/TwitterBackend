@@ -1,41 +1,30 @@
-import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 require('dotenv').config();
+const nodemailer = require('nodemailer');
 
-const ses = new SESClient({ region: 'us-east-1' });
-
-function createSendEmailCommand(ToAddresses: string, fromAddress: string, message: string) {
-    return new SendEmailCommand({
-        Destination: {
-            ToAddresses: [ToAddresses],
-        },
-        Source: fromAddress,
-        Message: {
-            Subject: {
-                Charset: 'UTF-8',
-                Data: 'Your one time password',
-            },
-            Body: {
-                Text: {
-                    Charset: 'UTF-8',
-                    Data: message
-                },
-            },
-            
-        }
-    })
-}
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.USER_EMAIL_SERVER || '',
+      pass: process.env.PASS_EMAIL_SERVER || '',
+    },
+  });
 
 export async function sendEmailToken(email: string, token: string) {
 
-    const fromAddress = process.env.EMAIL_SENDER || '';
-    const message = `Your one time password: ${token}`
-    const command = createSendEmailCommand(email, fromAddress, message)
+  const fromAddress = process.env.USER_EMAIL_SERVER || '';
 
-    try {
-        return await ses.send(command)
-    } catch (e) {
-        console.log('Error: ', e);
-        return e;
-    }
-
+  try {
+      await transporter.sendMail({
+        to: email,
+        from: `Twitter Copy ${fromAddress}`,
+        subject: 'One time password',
+        html: `Your one time password: ${token}`
+      });
+  } catch (e) {
+      console.log('Error: ', e);
+      return e;
+  }
 }
