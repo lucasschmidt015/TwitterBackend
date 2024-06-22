@@ -1,10 +1,12 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
+import multer from 'multer';
+
 import { User } from "../../types";
 import { authenticateToken } from '../middlewares/authMiddleware';
 import { validadeNewUser } from "./validations/userValidation";
 import { saveEmailToken } from "../utils";
-import multer from 'multer';
+import { uploadNewFile } from "../services/googleDrive";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -120,11 +122,20 @@ router.post('/updateProfilePicture', authenticateToken, upload.single('image'), 
     if (!req.file) {
         return res.status(401).json({ error: 'Image not provided' });
     }
-
-    const file = req.file; // Here we need to finish the flow, chat gpt examples bellow <-----
-
-    res.sendStatus(200);
     
+    const file = req.file; 
+    console.log("type of file <--- ", typeof file);
+
+
+    try {
+        const response = await uploadNewFile(file);
+
+        console.log('response <------ ', response);
+
+        return res.status(201).json({success: 'eba'});
+    } catch (err) {
+        return res.status(500).json({ error: err })
+    }
 });
 
 
