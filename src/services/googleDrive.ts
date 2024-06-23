@@ -58,3 +58,16 @@ export const uploadNewFile = async (file : Express.Multer.File) => {
         throw new Error("Error to save the new profile picture");
     }
 }
+
+export const deleteDriveFile = async (imageId : string) => {
+
+    try {
+        const driveDevice = createDriveDevice();
+
+        const response = await driveDevice.files.delete({
+            fileId: imageId
+        });
+    } catch (err) {
+        throw new Error("Something went wrong");
+    }
+}

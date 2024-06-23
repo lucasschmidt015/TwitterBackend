@@ -6,7 +6,7 @@ import { User } from "../../types";
 import { authenticateToken } from '../middlewares/authMiddleware';
 import { validadeNewUser } from "./validations/userValidation";
 import { saveEmailToken } from "../utils";
-import { uploadNewFile } from "../services/googleDrive";
+import { uploadNewFile, deleteDriveFile } from "../services/googleDrive";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -115,6 +115,7 @@ router.delete('/:id', authenticateToken, async (req: Request, res: Response) => 
 
 interface MulterRequest extends Request {
     file?: Express.Multer.File;
+    user?: User
 }
 
 router.post('/updateProfilePicture', authenticateToken, upload.single('image'), async (req: MulterRequest, res: Response) => {
@@ -122,17 +123,33 @@ router.post('/updateProfilePicture', authenticateToken, upload.single('image'), 
     if (!req.file) {
         return res.status(401).json({ error: 'Image not provided' });
     }
-    
-    const file = req.file; 
-    console.log("type of file <--- ", typeof file);
 
+    const file = req.file; 
+    const user = req.user;
+    const oldImage = user?.image;
 
     try {
         const response = await uploadNewFile(file);
 
-        console.log('response <------ ', response);
+        if (!response.id) {
+            throw new Error("Failed to update the profile image.");
+        }
 
-        return res.status(201).json({success: 'eba'});
+        const updatedUser = await prisma.user.update({
+            where: {
+                email: user?.email
+            }, 
+            data: {
+                image: response.id
+            }
+        });
+
+        if (oldImage) {
+            await deleteDriveFile(oldImage);
+        }
+
+        return res.status(201).json({success: "Success", updatedUser});
+
     } catch (err) {
         return res.status(500).json({ error: err })
     }
