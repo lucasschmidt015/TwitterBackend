@@ -148,7 +148,7 @@ router.post('/updateProfilePicture', authenticateToken, upload.single('image'), 
             await deleteDriveFile(oldImage);
         }
 
-        return res.status(201).json({success: "Success", updatedUser});
+        return res.status(201).json({success: "Profile picture updated successfully.", updatedUser});
 
     } catch (err) {
         return res.status(500).json({ error: err })
