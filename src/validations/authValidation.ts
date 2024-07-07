@@ -1,5 +1,5 @@
-import { ValidationReturn } from "../../../types";
-import { validateEmailFormat } from "../../utils";
+import { ValidationReturn } from "../../types";
+import { validateEmailFormat } from "../utils";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();

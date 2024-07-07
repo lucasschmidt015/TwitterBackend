@@ -4,7 +4,7 @@ import multer from 'multer';
 
 import { User } from "../../types";
 import { authenticateToken } from '../middlewares/authMiddleware';
-import { validadeNewUser } from "./validations/userValidation";
+import { validadeNewUser } from "../validations/userValidation";
 import { saveEmailToken } from "../utils";
 import { uploadNewFile, deleteDriveFile } from "../services/googleDrive";
 
