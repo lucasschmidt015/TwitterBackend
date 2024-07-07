@@ -27,7 +27,7 @@ interface TokenRequest {
  * 
  * @param req - The Express Request object containing the email in the body
  * @param res - The Express Response object to send the response
- * @returns {Promise<void>} - A Promise that resolves once the login process is completed
+ * @returns - A Promise that resolves once the login process is completed
  */
 export const startLogin = async (req: Request<{}, {}, {email: string}>, res: Response) => {
     const { email } = req.body;
