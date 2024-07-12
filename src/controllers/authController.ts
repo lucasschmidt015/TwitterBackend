@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken';
 
-import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { Request, Response } from "express";
 
 import { generateAuthToken, saveDBTokens, saveEmailToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";

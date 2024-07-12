@@ -8,19 +8,19 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // Create tweet
-router.post('/', authenticateToken, createTweet);
+router.post('/', createTweet);
 
 // List tweet
-router.get('/', authenticateToken, listTweets);
+router.get('/', listTweets);
 
 // Get one tweet
-router.get('/:id', authenticateToken, getTweetById);
+router.get('/:id', getTweetById);
 
 //Update tweet
-router.put('/:id', authenticateToken, updateTweet);
+router.put('/:id', updateTweet);
 
 //Delete tweet
-router.delete('/:id', authenticateToken, deleteTweet);
+router.delete('/:id', deleteTweet);
 
 
 

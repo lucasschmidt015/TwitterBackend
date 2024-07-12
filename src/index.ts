@@ -7,6 +7,8 @@ const cors = require('cors')
 
 const app = express();
 
+//To inprove this project, we could add error validation in a more advanced way
+
 app.use(cors());
 app.use(express.json());
 
