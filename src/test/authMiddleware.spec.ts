@@ -6,13 +6,17 @@ import { authenticateToken } from '../middlewares/authMiddleware';
 
 const prisma = new PrismaClient();
 
-jest.mock('@prisma/client', () => ({
-    PrismaClient: jest.fn().mockImplementation(() => ({
+jest.mock('@prisma/client', () => {
+    const mockPrismaClient = {
         token: {
             findUnique: jest.fn()
         }
-    }))
-}));
+    };
+    return {
+        PrismaClient: jest.fn(() => mockPrismaClient),
+    };
+});
+
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 
@@ -21,6 +25,7 @@ app.use(express.json());
 app.use((req: Request, res: Response, next: NextFunction) => {
     authenticateToken(req, res, next);
 });
+
 
 describe("Authentication middleware", () => {
 
@@ -44,12 +49,6 @@ describe("Authentication middleware", () => {
     });   
 
     it('Shoud return 401 with the token has expired', async () => {
-        // (prisma.token.findUnique as jest.Mock).mockResolvedValue({
-        //     valid: true,
-        //     expiration: new Date(Date.now() - 3600 * 1000),
-        //     user: { id: 1, name: 'Test user' }
-        // });  
-
         const response = await request(app)
             .get('/')
             .set('Authorization', `Bearer ${expiredToken}`)
@@ -64,4 +63,40 @@ describe("Authentication middleware", () => {
 
         expect(response.status).toBe(401);
     });
+
+
+    it("Should return 401 and 'API token expired' if the database token is invalid or expired", async () => {
+        (prisma.token.findUnique as jest.Mock).mockResolvedValue(null);  
+
+        const response = await request(app)
+            .get('/')
+            .set('Authorization', `Bearer ${validToken}`);
+
+
+        expect(response.status).toBe(401)
+        expect(JSON.parse(response.text)).toHaveProperty('error', 'API token expired')
+    });
+
+
+    it ('Should call next if token is valid', async () => {
+        const mockUser = { id: 1, name: 'Romeu' };
+        (prisma.token.findUnique as jest.Mock).mockResolvedValue({
+            valid: true,
+            expiration: new Date(Date.now() + 3600 * 1000),
+            user: mockUser
+          });
+
+        let nextCalled = false;
+        app.use((req: Request, res: Response) => {
+            nextCalled = true;
+            res.sendStatus(200);
+        })
+
+        const response = await request(app)
+            .get('/')
+            .set('Authorization', `Bearer ${validToken}`);
+
+        expect(response.status).toBe(200);
+        expect(nextCalled).toBe(true);
+    })
 })
