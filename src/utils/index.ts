@@ -1,6 +1,5 @@
-import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import jwt from 'jsonwebtoken'
+import jwt from 'jsonwebtoken';
 import { sendEmailToken } from "../services/emailService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
@@ -27,7 +26,7 @@ export function generateAuthToken(tokenId: number): string {
 
 
 
-export async function saveEmailToken(email: string) {
+export async function saveEmailToken(email: string) { // You should improve this method <----------------
     const emailToken = generateEmailToken();
     const expiration = new Date(Date.now() + EMAIL_TOKEN_EXPIRATION_MINUTES * 60 * 1000);
 
