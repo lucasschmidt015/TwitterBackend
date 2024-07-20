@@ -29,14 +29,14 @@ describe('Utils functions', () => {
         jest.clearAllMocks();
     });
 
-    test('generateEmailToken should return an 8 digit string', () => {
+    it('generateEmailToken should return an 8 digit string', () => {
         const token = generateEmailToken();
         expect(token).toHaveLength(8);
         expect(Number(token)).toBeGreaterThanOrEqual(10000000);
         expect(Number(token)).toBeLessThanOrEqual(99999999);
     });
 
-    test('generateAuthToken should return a JWT token', () => {
+    it('generateAuthToken should return a JWT token', () => {
         const tokenId = 123;
         (jwt.sign as jest.Mock).mockReturnValue('test_jwt_token');
         
@@ -49,7 +49,7 @@ describe('Utils functions', () => {
         });
     });
 
-    test('saveEmailToken should create an email token and send it', async () => {
+    it('saveEmailToken should create an email token and send it', async () => {
         const email = 'test@example.com';
         (prisma.token.create as jest.Mock).mockResolvedValue({ emailToken: '12345678' });
         
@@ -59,7 +59,7 @@ describe('Utils functions', () => {
         expect(sendEmailToken).toHaveBeenCalledWith(email, expect.any(String));
     });
 
-    test('saveDBTokens should create access and refresh tokens', async () => {
+    it('saveDBTokens should create access and refresh tokens', async () => {
         const email = 'test@example.com';
         (prisma.token.create as jest.Mock).mockResolvedValue({});
 
@@ -70,12 +70,12 @@ describe('Utils functions', () => {
         expect(tokens).toHaveProperty('dbRefreshToken');
     });
 
-    test('validateEmailFormat should return true for valid email', () => {
+    it('validateEmailFormat should return true for valid email', () => {
         const validEmail = 'test@example.com';
         expect(validateEmailFormat(validEmail)).toBe(true);
     });''
 
-    test('validateEmailFormat should return false for invalid email', () => {
+    it('validateEmailFormat should return false for invalid email', () => {
         const invalidEmail = 'invalid-email';
         expect(validateEmailFormat(invalidEmail)).toBe(false);
     });

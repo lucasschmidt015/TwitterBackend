@@ -22,8 +22,6 @@ export const validadeNewUser = async (body: newUser): Promise<ValidationReturn |
         return { statusCode: 401, error: 'You need to provide a username' };
     }
 
-    //Username should be unique <----------
-
     if (!validateEmailFormat(email)) {
         return {
             statusCode: 401,
