@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import express, { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { startLogin } from "../controllers/authController";
+import { startLogin, authenticateEmailToken } from "../controllers/authController";
 import { saveEmailToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";
 
@@ -16,6 +16,18 @@ jest.mock('../utils', () => ({
 jest.mock('../validations/authValidation', () => ({
     loginValidation: jest.fn()
 }));
+
+jest.mock('@prisma/client', () => {
+    const mockPrismaClient = {
+        token: {
+            findUnique: jest.fn()
+        }
+    }
+
+    return {
+        PrismaClient: jest.fn(() => mockPrismaClient)
+    }
+});
 
 function createExpressInstance(callback) {
     const app = express();
@@ -60,7 +72,7 @@ describe('Auth Controller', () => {
         expect(response.body).toHaveProperty('error', 'Internal server error, please try again later.');
     });
 
-    it('startLogin should return an success response', async () => {
+    it("startLogin should return an success response", async () => {
         (loginValidation as jest.Mock).mockReturnValue(null);
         (saveEmailToken as jest.Mock).mockReturnValue(true);
 
@@ -71,4 +83,51 @@ describe('Auth Controller', () => {
         expect(saveEmailToken).toHaveBeenCalled();
         expect(response.status).toBe(200);
     });
-})
+
+    it("authenticateEmailToken should return a custom error response if the email was not provided", async () => {
+        const requestBody = {
+            email: undefined,
+            emailToken: undefined,
+        };
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app).post('/').send(requestBody);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'The email field was not provided');
+    })
+
+    it("authenticateEmailToken should return a custom response if the emailToken was not provided", async () => {
+        const requestBody = {
+            email: 'test@test.com',
+            emailToken: undefined
+        };
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app).post('/').send(requestBody);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'The token field was not provided');
+    });
+
+    it("authenticateEmailToken should return a custom response if the dbEmailToken was not found", async () => {
+        const requestBody = {
+            email: 'teste@teste.com',
+            emailToken: '123123142',
+        };
+
+        (prisma.token.findUnique as jest.Mock).mockReturnValue(false);
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+        expect(response.body).toHaveProperty('error', 'The password is invalid')
+
+    });
+});
