@@ -3,14 +3,16 @@ import express, { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { startLogin, authenticateEmailToken, handleRefreshToken } from "../controllers/authController";
-import { saveEmailToken } from "../utils";
+import { saveEmailToken, saveDBTokens, generateAuthToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'SuperSecret';
 
 jest.mock('../utils', () => ({
-    saveEmailToken: jest.fn()
+    saveEmailToken: jest.fn(),
+    generateAuthToken: jest.fn(),
+    saveDBTokens: jest.fn()
 }));
 
 jest.mock('../validations/authValidation', () => ({
@@ -28,6 +30,10 @@ jest.mock('@prisma/client', () => {
         PrismaClient: jest.fn(() => mockPrismaClient)
     }
 });
+
+jest.mock('jsonwebtoken', () => ({
+    verify: jest.fn(),
+}));
 
 function createExpressInstance(callback) {
     const app = express();
@@ -184,6 +190,193 @@ describe('Auth Controller', () => {
         expect(response.status).toBe(401);
         expect(response.body).toHaveProperty('error', 'unauthorized');
     });
-    
+
+    it("handleRefreshToken should return a custom error response if the input is invalid", async () => {
+        const requestBody = {
+            accessToken: undefined,
+            refreshToken: undefined,
+        };
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('stillValid', false);
+    });
+
+    it("handleRefreshToken should return a custom error response if the acessToken payload doesn't include an tokenId", async () => {
+        const requestBody = {
+            accessToken: 'sometoken',
+            refreshToken: 'sometoken',
+        };
+
+        (jwt.verify as jest.Mock).mockReturnValue({ tokenId: false });
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+        expect(response.body).toHaveProperty('stillValid', false);
+    });
+
+    //<-----------------------------
+    it("handleRefreshToken should return 401 if refreshToken payload doesn't include tokenId", async () => {
+        const requestBody = {
+            accessToken: 'expiredAccessToken',
+            refreshToken: 'invalidRefreshToken'
+        };
+
+        (jwt.verify as jest.Mock).mockImplementation((token) => {
+            if (token === 'expiredAccessToken') return { tokenId: 1 };
+            if (token === 'invalidRefreshToken') return {};
+        });
+
+        (prisma.token.findUnique as jest.Mock).mockResolvedValue({
+            id: 1,
+            valid: false,
+            expiration: new Date(Date.now() - 1000),
+            user: { email: 'user@example.com' }
+        });
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+        expect(response.body).toHaveProperty('stillValid', false);
+    });
+
+    it("handleRefreshToken should return 200 with stillValid false if oldDBRefreshToken is invalid or expired", async () => {
+        const requestBody = {
+            accessToken: 'expiredAccessToken',
+            refreshToken: 'validRefreshToken'
+        };
+
+        (jwt.verify as jest.Mock).mockImplementation((token) => {
+            if (token === 'expiredAccessToken') return { tokenId: 1 };
+            if (token === 'validRefreshToken') return { tokenId: 2 };
+        });
+
+        (prisma.token.findUnique as jest.Mock)
+            .mockResolvedValueOnce({
+                id: 1,
+                valid: false,
+                expiration: new Date(Date.now() - 1000),
+                user: { email: 'user@example.com' }
+            })
+            .mockResolvedValueOnce({
+                id: 2,
+                valid: false,
+                expiration: new Date(Date.now() - 1000),
+                user: { email: 'user@example.com' }
+            });
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('stillValid', false);
+    });
+
+    it("handleRefreshToken should return 200 with new tokens if refreshToken is valid", async () => {
+        const requestBody = {
+            accessToken: 'expiredAccessToken',
+            refreshToken: 'validRefreshToken'
+        };
+
+        (jwt.verify as jest.Mock).mockImplementation((token) => {
+            if (token === 'expiredAccessToken') return { tokenId: 1 };
+            if (token === 'validRefreshToken') return { tokenId: 2 };
+        });
+
+        (prisma.token.findUnique as jest.Mock)
+            .mockResolvedValueOnce({
+                id: 1,
+                valid: false,
+                expiration: new Date(Date.now() - 1000),
+                user: { email: 'user@example.com' }
+            })
+            .mockResolvedValueOnce({
+                id: 2,
+                valid: true,
+                expiration: new Date(Date.now() + 1000),
+                user: { email: 'user@example.com' }
+            });
+
+        (saveDBTokens as jest.Mock).mockResolvedValue({
+            dbAccessToken: { id: 3 },
+            dbRefreshToken: { id: 4 }
+        });
+
+        (generateAuthToken as jest.Mock)
+            .mockReturnValueOnce('newAccessToken')
+            .mockReturnValueOnce('newRefreshToken');
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('stillValid', false);
+        expect(response.body.UpdatedTokens).toEqual({
+            accessToken: 'newAccessToken',
+            refreshToken: 'newRefreshToken'
+        });
+    });
+
+    it("handleRefreshToken should return 200 with stillValid true if accessToken is valid", async () => {
+        const requestBody = {
+            accessToken: 'validAccessToken',
+            refreshToken: 'validRefreshToken'
+        };
+
+        (jwt.verify as jest.Mock).mockReturnValue({ tokenId: 1 });
+
+        (prisma.token.findUnique as jest.Mock).mockResolvedValue({
+            id: 1,
+            valid: true,
+            expiration: new Date(Date.now() + 1000),
+            user: { email: 'user@example.com' }
+        });
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('stillValid', true);
+    });
+
+    it("handleRefreshToken should return 401 on any other error", async () => {
+        const requestBody = {
+            accessToken: 'anyAccessToken',
+            refreshToken: 'anyRefreshToken'
+        };
+
+        (jwt.verify as jest.Mock).mockImplementation(() => { throw new Error(); });
+
+        const app = createExpressInstance(handleRefreshToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+    });
 });
 

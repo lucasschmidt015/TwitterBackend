@@ -146,7 +146,7 @@ export const handleRefreshToken = async (req: Request<{}, {}, TokenRequest>, res
             
             const payloadRefresh = await jwt.verify(refreshToken, JWT_SECRET) as { tokenId: number };
          
-            if (!payloadRefresh?.tokenId) {
+            if (!payloadRefresh?.tokenId) { // Here lies our next test case
                 return res.status(401).json({stillValid: false});
             }
 
