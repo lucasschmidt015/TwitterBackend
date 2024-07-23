@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import express, { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { startLogin, authenticateEmailToken } from "../controllers/authController";
+import { startLogin, authenticateEmailToken, handleRefreshToken } from "../controllers/authController";
 import { saveEmailToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";
 
@@ -130,4 +130,60 @@ describe('Auth Controller', () => {
         expect(response.body).toHaveProperty('error', 'The password is invalid')
 
     });
+
+    it('authenticateEmailToken should return a custom error response if the dbEmailToken is not longer valid', async () => {
+        const requestBody = {
+            email: 'teste@teste.com',
+            emailToken: '123123123',
+        };
+
+        (prisma.token.findUnique as jest.Mock).mockReturnValue({ valid: false });
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401)
+        expect(response.body).toHaveProperty('error', 'The password is invalid');
+    });
+
+    it("authenticateEmailToken should return a custom error response if the token has expired", async () => {
+        const requestBody = {
+            email: 'teste@teste.com',
+            emailToken: '123123123',
+        };
+
+        (prisma.token.findUnique as jest.Mock).mockReturnValue({ valid: true, expiration: new Date(Date.now() - 86400000) });
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+        expect(response.body).toHaveProperty('error', 'The password has expired');
+    });
+
+    it("authenticateEmailToken should return a custom error response if the email of the user in the token doesn't match the email sent", async () => {
+        const requestBody = {
+            email: 'teste@teste.com',
+            emailToken: '123123123',
+        };
+
+        (prisma.token.findUnique as jest.Mock).mockReturnValue({ valid: true, expiration: new Date(Date.now() + 86400000), user: { email: 'teste2@test.com' } });
+
+        const app = createExpressInstance(authenticateEmailToken);
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(401);
+        expect(response.body).toHaveProperty('error', 'unauthorized');
+    });
+    
 });
+
