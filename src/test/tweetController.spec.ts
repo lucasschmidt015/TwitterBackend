@@ -1,4 +1,4 @@
-import { createTweet, updateTweet, listTweets, getTweetById } from "../controllers/tweetController";
+import { createTweet, updateTweet, listTweets, getTweetById, deleteTweet } from "../controllers/tweetController";
 import { PrismaClient } from "@prisma/client";
 import { createExpressInstance } from "./utilities";
 import request from 'supertest';
@@ -17,6 +17,7 @@ jest.mock('@prisma/client', () => {
             update: jest.fn(),
             findMany: jest.fn(),
             findUnique: jest.fn(),
+            delete: jest.fn(),
         }
     }
 
@@ -138,5 +139,15 @@ describe("Tweet Controller", () => {
         expect(response.status).toBe(200);
         expect(response.body).toHaveProperty('content', 'some fake content 1');
     })
+
+    it('deleteTweet should return a 200 status code', async () => {
+        (prisma.tweet.delete as jest.Mock).mockReturnValue(null);      
+
+        const app = createExpressInstance(deleteTweet);
+
+        const response = await request(app)
+            .post('/')
+        expect(response.status).toBe(200);
+    });
 
 })
