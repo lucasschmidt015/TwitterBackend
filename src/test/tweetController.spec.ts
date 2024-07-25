@@ -1,4 +1,4 @@
-import { createTweet, updateTweet } from "../controllers/tweetController";
+import { createTweet, updateTweet, listTweets, getTweetById } from "../controllers/tweetController";
 import { PrismaClient } from "@prisma/client";
 import { createExpressInstance } from "./utilities";
 import request from 'supertest';
@@ -15,6 +15,8 @@ jest.mock('@prisma/client', () => {
         tweet: {
             create: jest.fn(),
             update: jest.fn(),
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
         }
     }
 
@@ -110,4 +112,31 @@ describe("Tweet Controller", () => {
         expect(response.status).toBe(200);
         expect(response.body).toHaveProperty('content', 'some fake data');      
     });
+
+    it('listTweets should return a list of tweets', async () => {
+        (prisma.tweet.findMany as jest.Mock).mockReturnValue([
+            { id: 1, content: 'some fake content 1' },
+            { id: 2, content: 'some fake content 2' },
+            { id: 3, content: 'some fake content 3' },
+        ]);
+
+        const app = createExpressInstance(listTweets);
+
+        const response = await request(app)
+            .post('/')
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveLength(3);
+    })
+
+    it('getTweetById should return a single tweet', async () => {
+        (prisma.tweet.findUnique as jest.Mock).mockReturnValue({ id: 1, content: 'some fake content 1' });      
+
+        const app = createExpressInstance(getTweetById);
+
+        const response = await request(app)
+            .post('/')
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('content', 'some fake content 1');
+    })
+
 })
