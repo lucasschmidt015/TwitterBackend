@@ -1,10 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import express, { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { startLogin, authenticateEmailToken, handleRefreshToken } from "../controllers/authController";
-import { saveEmailToken, saveDBTokens, generateAuthToken } from "../utils";
+import { authenticateEmailToken, handleLogout, handleRefreshToken, startLogin } from "../controllers/authController";
+import { generateAuthToken, saveDBTokens, saveEmailToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";
+import { createExpressInstance } from "./utilities";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'SuperSecret';
@@ -34,16 +34,6 @@ jest.mock('@prisma/client', () => {
 jest.mock('jsonwebtoken', () => ({
     verify: jest.fn(),
 }));
-
-function createExpressInstance(callback) {
-    const app = express();
-    app.use(express.json());
-    app.use((req: Request, res: Response, next: NextFunction) => {
-        callback(req, res, next);
-    })
-
-    return app;
-}
 
 describe('Auth Controller', () => {
 
@@ -377,6 +367,21 @@ describe('Auth Controller', () => {
             .send(requestBody);
 
         expect(response.status).toBe(401);
+    });
+
+    it('handleLogout should return a 200 status code if the accessToken and refreshToken were not provided', async () => {
+        const requestBody = { 
+            accessToken: undefined,
+            refreshToken: undefined,
+        };
+
+        const app = createExpressInstance(handleLogout)
+
+        const response = await request(app)
+            .post('/')
+            .send(requestBody);
+
+        expect(response.status).toBe(200);
     });
 });
 
