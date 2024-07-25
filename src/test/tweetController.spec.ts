@@ -1,4 +1,4 @@
-import { createTweet } from "../controllers/tweetController";
+import { createTweet, updateTweet } from "../controllers/tweetController";
 import { PrismaClient } from "@prisma/client";
 import { createExpressInstance } from "./utilities";
 import request from 'supertest';
@@ -13,7 +13,8 @@ interface UserRequest extends Request {
 jest.mock('@prisma/client', () => {
     const mockPrismaClient = {
         tweet: {
-            create: jest.fn()
+            create: jest.fn(),
+            update: jest.fn(),
         }
     }
 
@@ -79,5 +80,34 @@ describe("Tweet Controller", () => {
 
         expect(response.status).toBe(201);
         expect(response.body).toHaveProperty('message', 'Tweet successfully created');
+    });
+
+    it("UpdateTweet should return a custom error response if the tweet update fails", async () => {
+        (prisma.tweet.update as jest.Mock).mockImplementation(() => {
+            throw new Error('Some error');
+        });
+
+        const app = createExpressInstance(updateTweet);
+
+        const response = await request(app)
+            .post('/');
+
+        expect(response.status).toBe(400);
+        expect(response.body).toHaveProperty('error', 'Failed to update the tweet.');
+    });
+
+    it('updateTweet should return the updated tweet data if everything succeds', async () => {
+        (prisma.tweet.update as jest.Mock).mockReturnValue({
+            id: 1,
+            content: 'some fake data',
+        });
+
+        const app = createExpressInstance(updateTweet);
+
+        const response = await request(app)
+            .post('/');
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('content', 'some fake data');      
     });
 })
