@@ -7,19 +7,19 @@ const cors = require('cors')
 
 const app = express();
 
+//To inprove this project, we could add error validation in a more advanced way
+
 app.use(cors());
 app.use(express.json());
+
 app.use('/auth', authRoutes);
-app.use('/user', authenticateToken, userRoutes);
+app.use('/user', userRoutes);
 app.use('/tweet', authenticateToken, tweetRoutes);
 
 app.get('/', (req, res) => {
     res.send("Hello World");
 });
 
-
-app.listen(3000, () => {
+app.listen(process.env.PORT || 3000, () => {
     console.log("Server ready at localhost:3000");
 });
-
-// I've stoped at 01:46:16 <------------

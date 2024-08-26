@@ -1,79 +1,40 @@
-import { Router } from 'express';
+import { Router } from "express";
 import { PrismaClient } from '@prisma/client';
+import multer from 'multer';
+
+import { authenticateToken } from '../middlewares/authMiddleware';
+import { createUser, updateUser, deleteUser, updateProfilePicture, returnLoggedUser, listAllUsers, getUserById } from "../controllers/userController";
 
 const router = Router();
 const prisma = new PrismaClient();
 
+//Set-up the multer configuration the upload files
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  });
+
 // Create User
-router.post('/', async (req, res) => {
-    const { email, name, username } = req.body
+router.post('/', createUser);
 
-    try {
-        const result = await prisma.user.create({
-            data: {
-                email,
-                name,
-                username,
-                bio: "Hello, I'm new on Twitter",
-            }
-        });
-
-        res.status(201).json(result);
-
-    } catch (error) {
-        res.status(400).json({ error: "Username and email should be unique." })
-    }
-    
-});
+//Return the logged user data
+router.get('/loggedUser', authenticateToken, returnLoggedUser);
 
 // List user
-router.get('/', async (req, res) => {
-    const allUser = await prisma.user.findMany();
-    res.json(allUser);
-});
+router.get('/', authenticateToken, listAllUsers);
 
 // Get one user
-router.get('/:id', async (req, res) => {
-    const { id } = req.params;
-
-    const user = await prisma.user.findUnique({ where: { id: Number(id) }, include: { tweets: true } });
-
-    res.json(user)
-});
+router.get('/:id', authenticateToken, getUserById);
 
 //Update User
-router.put('/:id', async (req, res) => {
-    const { id } = req.params;
-    const { bio, name, image } = req.body;
-
-    try {
-        const result = await prisma.user.update({
-            where: { id: Number(id) },
-            data: {
-                bio,
-                name,
-                image
-            }
-        });
-
-        res.json(result)
-
-    } catch(error) {
-        res.status(400).json({error: `Failed to update the user.`});
-    }
-
-    res.status(501).json({ error: `Not implemented: ${id}` })
-});
+router.put('/:id', authenticateToken, updateUser);
 
 //Delete User
-router.delete('/:id', async (req, res) => {
-    const { id } = req.params;
+router.delete('/:id', authenticateToken, deleteUser);
 
-    await prisma.user.delete({
-        where: { id: Number(id) }
-    })
+//Updates the user's profile picture
+// @ts-ignore
+router.post('/updateProfilePicture', authenticateToken, upload.single('image'), updateProfilePicture);
 
-    res.sendStatus(200);
-});
 
 export default router;
