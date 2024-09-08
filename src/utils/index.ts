@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken';
 import { sendEmailToken } from "../services/emailService";
+import multer from "multer";
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
@@ -83,3 +84,9 @@ export const validateEmailFormat = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
 }
+
+//Set-up the multer configuration the upload files
+export const uploader = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 }, // 5MB limit
+});

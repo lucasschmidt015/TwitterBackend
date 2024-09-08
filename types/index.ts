@@ -21,3 +21,7 @@ export interface AuthenticatedRequest extends Request {
 export interface MulterRequest extends Request {
     file?: Express.Multer.File;
 }
+
+export interface updateProfilePictureRequest extends MulterRequest {
+    user?: User
+}

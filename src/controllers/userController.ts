@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { validadeNewUser } from "../validations/userValidation";
 import { saveEmailToken } from "../utils";
-import { User, MulterRequest, AuthenticatedRequest } from "../../types";
+import { User, AuthenticatedRequest, updateProfilePictureRequest } from "../../types";
 import { uploadNewFile, deleteDriveFile } from "../services/googleDrive";
 
 const prisma = new PrismaClient();
@@ -105,10 +105,6 @@ export const returnLoggedUser = (req: AuthenticatedRequest, res: Response) => {
     }
 
     res.status(200).json(req.user);
-}
-
-interface updateProfilePictureRequest extends MulterRequest {
-    user?: User
 }
 
 /**
