@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import userRoutes from './routes/userRoutes';
 import tweetRoutes from './routes/tweetRoutes';
 import authRoutes from './routes/authRoutes';
@@ -18,6 +18,13 @@ app.use('/tweet', authenticateToken, tweetRoutes);
 
 app.get('/', (req, res) => {
     res.send("Hello World");
+});
+
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+    res.status(500).json({
+        message: 'Internal server error',
+        error: error.message || 'Something went wrong',
+    });
 });
 
 app.listen(process.env.PORT || 3000, () => {
