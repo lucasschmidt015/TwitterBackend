@@ -1,12 +1,10 @@
 import { Request, Response } from "express";
-import { PrismaClient } from '@prisma/client';
+import prisma from "../utils/prisma";
 
 import { validadeNewUser } from "../validations/userValidation";
 import { saveEmailToken } from "../utils";
 import { User, AuthenticatedRequest, updateProfilePictureRequest } from "../../types";
 import { uploadNewFile, deleteDriveFile } from "../services/googleDrive";
-
-const prisma = new PrismaClient();
 
 /**
  * Creates a new user in the database and sends an email token for verification.

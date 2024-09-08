@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../../types';
+import prisma from '../utils/prisma';
 
-const prisma = new PrismaClient();
 
 /**
  * Creates a new tweet with the provided content and image for the authenticated user.

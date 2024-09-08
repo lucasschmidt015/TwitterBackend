@@ -1,14 +1,12 @@
 import { ValidationReturn } from "../../types";
 import { validateEmailFormat } from "../utils";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../utils/prisma";
 
 type newUser = {
     email: string;
     username: string;
     name: string;
 }
-
-const prisma = new PrismaClient();
 
 export const validadeNewUser = async (body: newUser): Promise<ValidationReturn | undefined>  => {
  

@@ -1,6 +1,4 @@
-import { Router, Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-import jwt from 'jsonwebtoken'
+import { Router } from "express";
 
 //Controllers
 import { startLogin, authenticateEmailToken, handleRefreshToken, handleLogout } from '../controllers/authController';

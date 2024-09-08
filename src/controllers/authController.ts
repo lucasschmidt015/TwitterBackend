@@ -1,14 +1,12 @@
 import jwt from 'jsonwebtoken';
 
-import { PrismaClient } from "@prisma/client";
+import prisma from '../utils/prisma';
 import { Request, Response } from "express";
 
 import { generateAuthToken, saveDBTokens, saveEmailToken } from "../utils";
 import { loginValidation } from "../validations/authValidation";
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
-
-const prisma = new PrismaClient();
 
 interface EmailTokenRequest {
     email: string;

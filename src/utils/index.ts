@@ -1,15 +1,12 @@
-import { PrismaClient } from "@prisma/client";
 import jwt from 'jsonwebtoken';
 import { sendEmailToken } from "../services/emailService";
 import multer from "multer";
+import prisma from './prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || "SUPER SECRET";
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_HOURS = 12;
 const AUTHENTICATION_EXPIRATION_MONTHS = 3;
-
-
-const prisma = new PrismaClient();
 
 //Generate a random 8 digit number as the email token
 export function generateEmailToken(): string {
